@@ -1,11 +1,11 @@
 #include <Servo.h> 
-Servo horizontal; // horizontal servo
+Servo horizontal; // servo sumbu horizontal
 int servoh = 180; 
 int servohLimitHigh = 175;
 int servohLimitLow = 5;
 
 
-Servo vertical; // vertical servo
+Servo vertical; // servi sumbu vertikal
 int servov = 45; 
 int servovLimitHigh = 100;
 int servovLimitLow = 1;
