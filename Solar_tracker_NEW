@@ -1,0 +1,112 @@
+// Assembled by @mndzww__
+// 14-02-2024
+
+#include <Servo.h>
+
+// Pin untuk sensor cahaya
+const int lightSensorUpRight = A0; // Pin analog untuk sensor cahaya sudut kanan atas
+const int lightSensorUpLeft = A1;  // Pin analog untuk sensor cahaya sudut kiri atas
+const int lightSensorDownRight = A2; // Pin analog untuk sensor cahaya sudut kanan bawah
+const int lightSensorDownLeft = A3;  // Pin analog untuk sensor cahaya sudut kiri bawah
+
+// Pin untuk motor servo
+const int servoXPin = 4; // Pin untuk servo sumbu X
+const int servoYPin = 5; // Pin untuk servo sumbu Y
+
+// Variabel untuk menyimpan nilai pembacaan sensor cahaya
+int lightValueUpRight;
+int lightValueUpLeft;
+int lightValueDownRight;
+int lightValueDownLeft;
+
+// Variabel untuk smoothing
+const float smoothingFactor = 0.2; // nilai ini bisa disesuaikan kebutuhan yah
+int previousUpRight;
+int previousUpLeft;
+int previousDownRight;
+int previousDownLeft;
+
+// Tentukan zona mati untuk sumbu X dan Y
+const int deadZone = 50; // nilai ini bisa disesuaikan kebutuhan yah
+
+// Objek untuk mengontrol servo
+Servo servoX;
+Servo servoY;
+
+void setup() {
+  // Mengatur pin servo sebagai output
+  pinMode(servoXPin, OUTPUT);
+  pinMode(servoYPin, OUTPUT);
+
+  // Mengaktifkan Serial Monitor
+  Serial.begin(9600);
+
+  // Mengatur posisi awal servo
+  servoX.attach(servoXPin);
+  servoY.attach(servoYPin);
+  servoX.write(90); // Posisi tengah
+  servoY.write(90); // Posisi tengah
+
+  // Inisialisasi nilai smoothing
+  previousUpRight = analogRead(lightSensorUpRight);
+  previousUpLeft = analogRead(lightSensorUpLeft);
+  previousDownRight = analogRead(lightSensorDownRight);
+  previousDownLeft = analogRead(lightSensorDownLeft);
+}
+
+void loop() {
+  // Membaca nilai sensor cahaya
+  lightValueUpRight = analogRead(lightSensorUpRight);
+  lightValueUpLeft = analogRead(lightSensorUpLeft);
+  lightValueDownRight = analogRead(lightSensorDownRight);
+  lightValueDownLeft = analogRead(lightSensorDownLeft);
+
+  // Melakukan perataan (smoothing) pada pembacaan sensor
+  lightValueUpRight = smoothingFactor * lightValueUpRight + (1 - smoothingFactor) * previousUpRight;
+  lightValueUpLeft = smoothingFactor * lightValueUpLeft + (1 - smoothingFactor) * previousUpLeft;
+  lightValueDownRight = smoothingFactor * lightValueDownRight + (1 - smoothingFactor) * previousDownRight;
+  lightValueDownLeft = smoothingFactor * lightValueDownLeft + (1 - smoothingFactor) * previousDownLeft;
+
+  // Memperbarui nilai sebelumnya untuk iterasi berikutnya
+  previousUpRight = lightValueUpRight;
+  previousUpLeft = lightValueUpLeft;
+  previousDownRight = lightValueDownRight;
+  previousDownLeft = lightValueDownLeft;
+
+  // Menghitung rata-rata sudut berdasarkan nilai sensor cahaya
+  int averageX = (lightValueUpRight - lightValueUpLeft + lightValueDownRight - lightValueDownLeft) / 4;
+  int averageY = (lightValueUpRight + lightValueUpLeft - lightValueDownRight - lightValueDownLeft) / 4;
+
+  // Menerapkan zona mati pada sumbu X (agar tidak nodding rapidly (mengangguk2 secara cepat))
+  if (abs(averageX) < deadZone) {
+    averageX = 0;
+  }
+
+  // Menerapkan zona mati pada sumbu Y (agar tidak nodding rapidly (mengangguk2 secara cepat))
+  if (abs(averageY) < deadZone) {
+    averageY = 0;
+  }
+
+  // Menghitung perbedaan antara sensor kanan dan kiri
+  int differenceRL = lightValueUpRight - lightValueUpLeft;
+
+  // Mengonversi nilai perbedaan dan nilai rata-rata Y ke sudut yang sesuai
+  int angleX = map(differenceRL, -1023, 1023, 90, -90);
+  int angleY = map(averageY, -1023, 1023, -320, 190);
+
+  // Menggerakkan servo ke posisi yang sesuai dengan sudut
+  servoX.write(90 - angleX); // Disesuaikan untuk membalikkan arah pada sumbu X
+  servoY.write(90 + angleY); // Disesuaikan untuk sumbu Y
+
+  // Menampilkan nilai sensor cahaya dan sudut pada Serial Monitor
+  Serial.print("Rata-rata Sensor X: ");
+  Serial.print(averageX);
+  Serial.print(" - Sudut Rata-rata X: ");
+  Serial.print(angleX);
+  Serial.print(" | Rata-rata Sensor Y: ");
+  Serial.print(averageY);
+  Serial.print(" - Sudut Rata-rata Y: ");
+  Serial.println(angleY);
+
+  delay(1); // Delay untuk menghindari pembacaan yang terlalu cepat
+}
