@@ -1,41 +1,63 @@
-
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <Servo.h>
 
-const char* ssid="Your SSID";
-const char* password = "Your Password";
+const char *ssid = "Nama WiFi Anda";
+const char *password = "Password WiFi Anda";
 
-int ledPin = 5;
+ESP8266WebServer server(80);
+Servo solarServo;
+
+const int voltagePin = A0;
 
 void setup() {
-  
-  pinMode(ledPin,OUTPUT);
-  digitalWrite(ledPin,LOW);
-
   Serial.begin(115200);
-  Serial.println();
-  Serial.print("Wifi connecting to ");
-  Serial.println( ssid );
 
-  WiFi.begin(ssid,password);
-
-  Serial.println();
-  Serial.print("Connecting");
-
-  while( WiFi.status() != WL_CONNECTED ){
-      delay(500);
-      Serial.print(".");        
+  // Menghubungkan ke WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(250);
+    Serial.print(".");
   }
+  Serial.println("");
+  Serial.println("WiFi connected");
 
-  digitalWrite( ledPin , HIGH);
-  Serial.println();
+  // Menentukan route untuk handle HTTP GET request
+  server.on("/", HTTP_GET, handleRoot);
 
-  Serial.println("Wifi Connected Success!");
-  Serial.print("NodeMCU IP Address : ");
-  Serial.println(WiFi.localIP() );
+  // Memulai server
+  server.begin();
 
+  // Inisialisasi servo
+  solarServo.attach(D2);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Handle HTTP request
+  server.handleClient();
 
+  // Baca tegangan
+  int sensorValue = analogRead(voltagePin);
+  float voltage = sensorValue * (5.0 / 1023.0);
+
+  // Update posisi servo berdasarkan tegangan (contoh implementasi)
+  int servoPosition = map(sensorValue, 0, 1023, 0, 180);
+  solarServo.write(servoPosition);
+  delay(15);
+}
+
+// Handler untuk halaman web
+void handleRoot() {
+  // Baca tegangan lagi untuk memastikan nilai terkini
+  int sensorValue = analogRead(voltagePin);
+  float voltage = sensorValue * (5.0 / 1023.0);
+
+  // Buat respons HTML untuk ditampilkan di halaman web
+  String html = "<html><body>";
+  html += "<h1>Solar Tracker Monitoring</h1>";
+  html += "<p>Voltage: " + String(voltage) + "V</p>";
+  html += "</body></html>";
+
+  // Kirim respons HTML
+  server.send(200, "text/html", html);
 }
